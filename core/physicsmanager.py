@@ -6,13 +6,17 @@ from core.contact import CollisionContact
 class PhysicsManager:
     PHYSICS_TICK = 0.05 # Interval between physics ticks
     GRAVITY = Vec2(0, 50)
+    MAX_ITERATIONS = 32
+    OVERLAP = 0.5
+    CORRECTION = 0.4
+
+
     __elapsed_time = 0
     __ticks = 0
 
-    __rigidbodies = []
+    __rigidbodies = {}
     __colliders = []
 
-    MAX_ITERATIONS = 32
 
     @staticmethod
     def register_collider(collider):
@@ -20,7 +24,9 @@ class PhysicsManager:
 
     @staticmethod
     def register_rb(rb):
-        PhysicsManager.__rigidbodies.append(rb)
+        if (rb.collider == None):
+            return
+        PhysicsManager.__rigidbodies[rb.collider] = rb
 
     @staticmethod
     def update_ticks():
@@ -38,24 +44,37 @@ class PhysicsManager:
     def run():
         cols = PhysicsManager.__colliders
         rbs = PhysicsManager.__rigidbodies
-        for rb in rbs:
-            for col in cols:
-                if (rb.collider == None or rb.collider == col):
+        col_contacts = []
+
+        for i, col in enumerate(cols):
+            for other in cols[i + 1:]: # do not check colliders we already accounted for
+                rb_a, rb_b = rbs.get(col), rbs.get(other)
+                if CollisionContact.get_inverse_mass(rb_a) == 0 and CollisionContact.get_inverse_mass(rb_b) == 0:
                     continue
-                did_collide, simplex = PhysicsManager.check_collisions(rb.collider, col)
-                if (did_collide):
-                    if (rb.kinematic == True):
-                        continue
-                    normal, depth = PhysicsManager.resolve_collisions(rb.collider, col, simplex)
+                hit, simplex = PhysicsManager.check_collisions(col, other)
+                if (hit == False):
+                    continue
 
-                    collision_data = (rb.collider, col, normal, depth)
-                    rb.game_object.collision_event.invoke(collision_data)
-                    col.game_object.collision_event.invoke(collision_data)
+                normal, depth = PhysicsManager.resolve_collisions(col, other, simplex)
+                if (depth <= 0):
+                    continue
 
-                    # rb.collider.game_object.transform.position = rb.game_object.transform.position - normal * depth
+                for point, point_depth in PhysicsManager.contact_points(col, other, normal, depth):
+                    col_contacts.append(CollisionContact(rb_a, rb_b, point, normal, point_depth))
 
+                collision_data = (col, other, normal, depth)
+                col.game_object.collision_event.invoke(collision_data)
+                other.game_object.collision_event.invoke(collision_data)
+        
+        for c in col_contacts:
+            c.pre_step(PhysicsManager.PHYSICS_TICK, PhysicsManager.GRAVITY)
 
-        return
+        for _ in range(PhysicsManager.MAX_ITERATIONS):
+            for c in col_contacts:
+                c.solve()
+
+        for c in col_contacts:
+            c.correct_position(PhysicsManager.OVERLAP, PhysicsManager.CORRECTION)
 
     @staticmethod
     def cleanup():
@@ -178,4 +197,41 @@ class PhysicsManager:
             poly.insert(best_vert + 1, point)
         return best_normal, best_distance
 
-            
+
+    @staticmethod
+    def __clip(p1, p2, tangent, lowest, highest):
+        d1 = tangent.dot(p1)
+        d2 = tangent.dot(p2)
+        out = [p for p, d in ((p1, d1), (p2, d2)) if lowest <= d <= highest]
+        for bound in (lowest, highest):
+            if (d1 - bound) * (d2 - bound) < 0:
+                out.append(p1 + (p2 - p1) * ((bound - d1) / (d2 - d1)))
+        return out
+
+
+    @staticmethod
+    def contact_points(a, b, n, depth):
+        fa, fb = a.feature(n), b.feature(-n)
+        if len(fa) == 1 and len(fb) == 1:
+            return [((fa[0] + fb[0]) * 0.5, depth)]
+        if len(fa) == 1:
+            return [(fa[0], depth)]
+        if len(fb) == 1:
+            return [(fb[0], depth)]
+
+        # Two edges: the one most perpendicular to n is the reference face,
+        # the other edge is clipped against it.
+        flat = lambda f: abs((f[1] - f[0]).normalize().dot(n))
+        t = Vec2(-n.y, n.x)
+        if flat(fa) <= flat(fb):
+            ref, inc = fa, fb
+            plane = n.dot(a.support(n))
+            pen = lambda p: plane - n.dot(p)
+        else:
+            ref, inc = fb, fa
+            plane = (-n).dot(b.support(-n))
+            pen = lambda p: plane + n.dot(p)
+        lo, hi = sorted((t.dot(ref[0]), t.dot(ref[1])))
+        pts = [(p, pen(p)) for p in PhysicsManager.__clip(inc[0], inc[1], t, lo, hi)]
+        pts = [(p, d) for p, d in pts if d >= -1e-6]
+        return pts or [((a.support(n) + b.support(-n)) * 0.5, depth)]

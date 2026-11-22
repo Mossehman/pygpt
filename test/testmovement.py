@@ -17,7 +17,7 @@ class TestMovement(Component):
         attached_gameobject = self.game_object # -> This gets us the game object that contains this component
         gameobjects_transform = attached_gameobject.transform # -> The game object has a transform component
 
-        gameobjects_transform.rotation -= 40 * Time.get_deltatime()
+        # gameobjects_transform.rotation -= 40 * Time.get_deltatime()
 
         position = gameobjects_transform.position # -> The position of the game object now
 

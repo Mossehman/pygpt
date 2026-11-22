@@ -18,8 +18,8 @@ class TestScene(Scene):
         my_go.add_component(SpriteRenderer("Red.png"))
         my_go.add_component(TestMovement(50))
         my_go.transform.position.x += 1000
-        my_go.transform.position.y += 300
-        my_go.transform.scale.x = 100
+        my_go.transform.position.y += 500
+        my_go.transform.scale.x = 1000
         my_go.transform.scale.y = 100
         my_go.transform.rotation = 180
         my_go.add_component(PolygonCollider(PolygonCollider.BOX())).show_collider = True
@@ -27,9 +27,34 @@ class TestScene(Scene):
 
         my_go2 = GameObject("Test2")
         my_go2.add_component(SpriteRenderer("Red.png"))
-        my_go2.add_component(CircleCollider(0.5)).show_collider = True
+        my_go2.add_component(PolygonCollider(PolygonCollider.BOX())).show_collider = True
         my_go2.transform.position.x += 1000
         my_go2.transform.position.y += 100
         my_go2.transform.scale.x = 100
         my_go2.transform.scale.y = 100
         my_go2.add_component(Rigidbody()).restitution = 0.5
+
+
+        my_go3 = GameObject("Test3")
+        my_go3.add_component(SpriteRenderer("Red.png"))
+        my_go3.add_component(CircleCollider(0.5)).show_collider = True
+        my_go3.transform.position.x += 950
+        my_go3.transform.position.y -= 50
+        my_go3.transform.scale.x = 100
+        my_go3.transform.scale.y = 100
+        my_go3.add_component(Rigidbody()).restitution = 0
+        my_go3.get_component(Rigidbody).gravity_scale = 2
+
+
+
+        my_go4 = GameObject("Test4")
+        my_go4.add_component(SpriteRenderer("Red.png"))
+        my_go4.add_component(PolygonCollider(PolygonCollider.BOX())).show_collider = True
+        my_go4.transform.position.x += 700
+        my_go4.transform.position.y -= 50
+        my_go4.transform.scale.x = 100
+        my_go4.transform.scale.y = 300
+        my_go4.add_component(Rigidbody(5)).restitution = 1
+        my_go4.get_component(Rigidbody).gravity_scale = 2
+
+        
