@@ -55,6 +55,11 @@ class PhysicsManager:
                 if (hit == False):
                     continue
 
+                if (col.trigger == True or other.trigger == True):
+                    col.game_object.trigger_event.invoke(other)
+                    other.game_object.trigger_event.invoke(col)
+                    continue
+
                 normal, depth = PhysicsManager.resolve_collisions(col, other, simplex)
                 if (depth <= 0):
                     continue

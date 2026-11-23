@@ -42,13 +42,10 @@ class Component:
         return
 
     
-    def on_collision_enter(self, params=None):
+    def on_collision(self, params=None):
         return
 
-    def on_collision_stay(self, params=None):
-        return
-
-    def on_collision_exit(self, params=None):
+    def on_trigger(self, params=None):
         return
 
     

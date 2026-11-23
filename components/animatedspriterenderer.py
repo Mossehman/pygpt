@@ -1,5 +1,6 @@
 from components.spriterenderer import SpriteRenderer
 
+# TODO: actually make this class u lazy fuck
 class AnimatedSpriteRenderer(SpriteRenderer):
     def __init__(self, image_path, enabled=True):
         super().__init__(image_path, enabled)

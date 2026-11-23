@@ -5,9 +5,10 @@ from utility.vec2 import Vec2
 class Collider(Component):
     def __init__(self, enabled=True):
         super().__init__(enabled)
-        self.show_collider = False # Debug gizmo for rendering the collider shape\
+        self.show_collider = False # Debug gizmo for rendering the collider shape
         self.draw_color = (0, 255, 0)
         self.center = Vec2(0, 0)
+        self.trigger = False # Whether the object runs collision resolution or just alerts of collision 
         self.rb = None
 
     def support(self):

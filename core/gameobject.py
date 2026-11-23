@@ -8,6 +8,7 @@ class GameObject:
         self.name = name
         self.__current_scene = scenecontext.current_scene
         self.collision_event = AppEvent()
+        self.trigger_event = AppEvent()
 
         if (self.__current_scene == None):
             return # Should not be possible for there to be no current scene
@@ -59,7 +60,7 @@ class GameObject:
         self.__current_scene.physics_event.add_listener(c.physics_update)
         self.__current_scene.render_start_event.add_listener(c.before_render)
         self.__current_scene.render_end_event.add_listener(c.after_render)
-        self.collision_event.add_listener(c.on_collision_enter)
+        self.trigger_event.add_listener(c.on_trigger)
 
     def unhook_events(self, c: Component):
         # Unhook from the scene's events, this is either when the component is disabled/destroyed or the gameobject is inactive/destroyed
@@ -68,4 +69,5 @@ class GameObject:
         self.__current_scene.physics_event.remove_listener(c.physics_update)
         self.__current_scene.render_start_event.remove_listener(c.before_render)
         self.__current_scene.render_end_event.remove_listener(c.after_render)
-        self.collision_event.remove_listener(c.on_collision_enter)
+        self.collision_event.remove_listener(c.on_collision)
+        self.trigger_event.remove_listener(c.on_trigger)

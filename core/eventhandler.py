@@ -22,11 +22,12 @@ class AppEvent:
             if (func is None):
                 continue
             func(params)
-        self.event_listeners_onetime = [] # clear the one time listeners
+        self.event_listeners_onetime.clear() # clear the one time listeners
 
 
     def remove_listener(self, f):
         self.event_listeners.remove(f)
 
     def clear_listeners(self):
-        self.event_listeners = [] # Create a new set and discard the original
+        self.event_listeners_onetime.clear() # clear the one time listeners
+        self.event_listeners.clear() # Create a new set and discard the original
