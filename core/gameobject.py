@@ -2,6 +2,7 @@ from core.eventhandler import AppEvent
 from core.component import Component
 from components.transform import Transform
 import utility.scenecontext as scenecontext
+import weakref
 
 class GameObject:
     def __init__(self, name=""):
@@ -14,8 +15,9 @@ class GameObject:
             return # Should not be possible for there to be no current scene
         self.components = set()
         self.components_queue = set() # These components have not yet been inialised, we should ignore them for now
-        self.__current_scene.initialise_event.add_listener(self.init_components)
         self.transform = self.add_component(Transform())
+        self.__current_scene.initialise_event.add_listener(self.init_components)
+        self.__current_scene.destroy_event.add_listener(self.destroy_immediate)
 
     
     # Adds a component to the gameobject
@@ -28,14 +30,24 @@ class GameObject:
             self.components.add(c)
             self.__current_scene.start_event.add_listener_oneshot(c.start())
             self.hook_events(c)
-        return c
+        return weakref.proxy(c)
 
 
     # Returns a component by type, put in the specific component class to output, returns None if nothing is found
     def get_component(self, t: type):
         for component in self.components:
             if isinstance(component, t):
-                return component
+                return weakref.proxy(component)
+
+    
+    def remove_component(self, t: type):
+        for component in self.components:
+            if isinstance(component, t):
+                self.unhook_events(component)
+                print(f"{component} was DELETED!")
+                self.components.discard(component)
+                del component
+                break
 
     
     def init_components(self, params=None):
@@ -60,6 +72,7 @@ class GameObject:
         self.__current_scene.physics_event.add_listener(c.physics_update)
         self.__current_scene.render_start_event.add_listener(c.before_render)
         self.__current_scene.render_end_event.add_listener(c.after_render)
+        self.collision_event.add_listener(c.on_collision)
         self.trigger_event.add_listener(c.on_trigger)
 
     def unhook_events(self, c: Component):
@@ -71,3 +84,22 @@ class GameObject:
         self.__current_scene.render_end_event.remove_listener(c.after_render)
         self.collision_event.remove_listener(c.on_collision)
         self.trigger_event.remove_listener(c.on_trigger)
+
+    def destroy(self):
+        self.__current_scene.app_cleanup_event.add_listener_oneshot(self.destroy_immediate)
+
+    def destroy_immediate(self, params=None):
+        for component in self.components:
+            self.unhook_events(component)
+            del component
+
+
+        if (self.__current_scene is not None):
+            self.__current_scene.initialise_event.remove_listener(self.init_components)
+        self.components.clear()
+        self.components_queue.clear()
+        self.__current_scene = None
+
+
+    def get_scene(self):
+        return self.__current_scene

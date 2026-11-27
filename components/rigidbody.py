@@ -19,6 +19,8 @@ class Rigidbody(Component):
         self.collider = None
         self.__force = Vec2(0, 0)
         self.__torque = 0.0
+        self.prev_pos = Vec2(0, 0)
+        self.prev_rot = 0
 
     @staticmethod
     def cross_sv(w, r):
@@ -58,11 +60,22 @@ class Rigidbody(Component):
             r = point - self.game_object.transform.position
             self.angular_velocity += Vec2.cross(r, impulse) * self.inverse_inertia
 
+    def get_vel_from_impulse(self, impulse):
+        return (impulse * (1 /  self.__mass))
+
+    def get_pos_from_vel(self, vel):
+        if (self.enable_gravity):
+            vel += PhysicsManager.GRAVITY * PhysicsManager.PHYSICS_TICK * self.gravity_scale
+        
+        return vel * PhysicsManager.PHYSICS_TICK, vel
+
     def velocity_at(self, point):
         r = point - self.game_object.transform.position 
         return self.velocity + Rigidbody.cross_sv(self.angular_velocity, r)
 
     def physics_update(self, params=None):
+        self.prev_pos = Vec2(self.game_object.transform.position.x, self.game_object.transform.position.y)
+        self.prev_rot = self.game_object.transform.rotation
         # shorthand some of our variables so code is more readable
         dt = PhysicsManager.PHYSICS_TICK
         transform = self.game_object.transform
@@ -83,3 +96,8 @@ class Rigidbody(Component):
 
         transform.position += self.velocity * dt # position finally updates and we get our movement
         transform.rotation -= math.degrees(self.angular_velocity * dt) # Pygame is weird with angles for some reason, so negative rotation is clockwise instead of calculated counterclockwise
+
+
+    def late_update(self, params=None):
+        self.game_object.transform.render_position = self.prev_pos + (self.game_object.transform.position - self.prev_pos) * PhysicsManager.alpha
+        self.game_object.transform.render_rotation = self.prev_rot + (self.game_object.transform.rotation - self.prev_rot) * PhysicsManager.alpha

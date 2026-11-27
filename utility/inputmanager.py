@@ -7,10 +7,12 @@ class InputManager:
     released_inputs = set()
 
     @staticmethod
-    def poll_events(event):
-        InputManager.pressed_inputs = set()
-        InputManager.released_inputs = set()
+    def initialise():
+        InputManager.pressed_inputs.clear()
+        InputManager.released_inputs.clear()
 
+    @staticmethod
+    def poll_events(event):
         if (event.type == pygame.KEYDOWN):
             InputManager.pressed_inputs.add(event.key)
             InputManager.held_inputs.add(event.key)

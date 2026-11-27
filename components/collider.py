@@ -10,6 +10,7 @@ class Collider(Component):
         self.center = Vec2(0, 0)
         self.trigger = False # Whether the object runs collision resolution or just alerts of collision 
         self.rb = None
+        self.collider_layer = "default"
 
     def support(self):
         raise NotImplementedError("No collision shape found")

@@ -9,7 +9,7 @@ class GameRenderer:
     height = 800
     base_window_size = (0, 0)
     fullscreen = False
-    can_resize = True
+    can_resize = False
 
     window = None
     canvas = None
@@ -18,6 +18,7 @@ class GameRenderer:
     background_src = None
     background = None
     background_size = (0, 0)
+    update_bg = False
 
     @staticmethod
     def init_screen():
@@ -59,6 +60,7 @@ class GameRenderer:
 
     @staticmethod
     def set_backdrop(image):
+        GameRenderer.update_bg = True
         GameRenderer.background_src = image
 
     @staticmethod
@@ -67,12 +69,20 @@ class GameRenderer:
         GameRenderer.window = pygame.display.get_surface()
         window_width, window_height = GameRenderer.window.get_size()
         # The largest scale that still fits both ways; min() keeps the whole canvas visible.
-        GameRenderer.scale = min(window_width / GameRenderer.width, window_height / GameRenderer.height)
+        GameRenderer.canvas_scale = min(window_width / GameRenderer.width, window_height / GameRenderer.height)
         # Size of the canvas once scaled.
-        scaled_width = int(GameRenderer.width * GameRenderer.scale)
-        scaled_height = int(GameRenderer.height * GameRenderer.scale)
+        scaled_width = int(GameRenderer.width * GameRenderer.canvas_scale)
+        scaled_height = int(GameRenderer.height * GameRenderer.canvas_scale)
         # Centre the scaled canvas; the leftover space is split evenly on both sides.
-        GameRenderer.offset = ((window_width - scaled_width) // 2, (window_height - scaled_height) // 2)
+        GameRenderer.canvas_offset = ((window_width - scaled_width) // 2, (window_height - scaled_height) // 2)
+
+
+    # Converts a position in window pixels to a position on the canvas.
+    @staticmethod
+    def to_canvas(position):
+        # Subtract the centring offset, then undo the scaling by dividing.
+        return ((position[0] - GameRenderer.canvas_offset[0]) / GameRenderer.canvas_scale,
+                (position[1] - GameRenderer.canvas_offset[1]) / GameRenderer.canvas_scale)
 
     # Rewrites mouse events so their coordinates are canvas pixels. Without this,
     # clicking would hit the wrong spot whenever the window is not 640x800.
@@ -86,7 +96,7 @@ class GameRenderer:
             data["pos"] = GameRenderer.to_canvas(event.pos)
             # Motion events also have a "rel" (how far the mouse moved), which needs scaling too.
             if event.type == pygame.MOUSEMOTION:
-                data["rel"] = (event.rel[0] / GameRenderer.scale, event.rel[1] / GameRenderer.scale)
+                data["rel"] = (event.rel[0] / GameRenderer.canvas_scale, event.rel[1] / GameRenderer.canvas_scale)
             # Build a fresh event of the same type carrying the corrected data.
             return pygame.event.Event(event.type, data)
         return event
@@ -95,22 +105,23 @@ class GameRenderer:
     def render():
         window_width, window_height = GameRenderer.window.get_size()
         # Rebuild the stretched backdrop only when the window size has changed.
-        if GameRenderer.background_src is not None and GameRenderer.background_size != (window_width, window_height):
+        if GameRenderer.background_src is not None and (GameRenderer.background_size != (window_width, window_height) or GameRenderer.update_bg):
+            GameRenderer.update_bg = False
             GameRenderer.background = pygame.transform.smoothscale(GameRenderer.background_src, (window_width, window_height))
             # Multiply by grey to darken it, so the bars look like a dim frame around the game.
-            GameRenderer.background.fill((110, 110, 110), special_flags=pygame.BLEND_MULT)
+            # GameRenderer.background.fill((255, 255, 255), special_flags=pygame.BLEND_MULT)
             GameRenderer.background_size = (window_width, window_height)
-        # Fill the whole window first (this is what shows in the bars next to the canvas).
-        if GameRenderer.background is not None:
-            GameRenderer.window.blit(GameRenderer.background, (0, 0))
-        else:
-            GameRenderer.window.fill((0, 0, 0))
         # Stretch the canvas to its scaled size; smoothscale blends pixels so it looks clean.
         scaled = pygame.transform.smoothscale(
-            GameRenderer.canvas, (int(GameRenderer.width * GameRenderer.scale), int(GameRenderer.height * GameRenderer.scale)))
+            GameRenderer.canvas, (int(GameRenderer.width * GameRenderer.canvas_scale), int(GameRenderer.height * GameRenderer.canvas_scale)))
         # Place it at the centring offset.
-        GameRenderer.window.blit(scaled, GameRenderer.offset)
-        GameRenderer.canvas.fill((0, 0, 0))
+        GameRenderer.window.blit(scaled, GameRenderer.canvas_offset)
+        GameRenderer.window.fill((0, 0, 0))
+        # Fill the whole window first (this is what shows in the bars next to the canvas).
+        if GameRenderer.background is not None:
+            GameRenderer.canvas.blit(GameRenderer.background, (0, 0))
+        else:
+            GameRenderer.window.fill((0, 0, 0))
 
         GameRenderer.render_queue = sorted(GameRenderer.render_queue, key=lambda w: w[2]) # sort by priority of rendering
         for draw_call in GameRenderer.render_queue:
@@ -126,7 +137,7 @@ class GameRenderer:
             
         scaled = pygame.transform.smoothscale(
         GameRenderer.canvas,
-        (int(GameRenderer.width * GameRenderer.scale), int(GameRenderer.height * GameRenderer.scale)))
-        GameRenderer.window.blit(scaled, GameRenderer.offset)
+        (int(GameRenderer.width * GameRenderer.canvas_scale), int(GameRenderer.height * GameRenderer.canvas_scale)))
+        GameRenderer.window.blit(scaled, GameRenderer.canvas_offset)
 
 

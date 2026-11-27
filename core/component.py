@@ -6,6 +6,9 @@ class Component:
         self.__ran_awake = False
         self.__ran_start = False
 
+    def resolve(self):
+        return self
+
     def awake(self):
         return
 
@@ -43,6 +46,12 @@ class Component:
 
     
     def on_collision(self, params=None):
+        return
+
+    def on_collision_stay(self, params=None):
+        return
+
+    def on_collision_exit(self, params=None):
         return
 
     def on_trigger(self, params=None):

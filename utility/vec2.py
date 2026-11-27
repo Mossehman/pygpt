@@ -73,7 +73,7 @@ class Vec2:
     
     @staticmethod
     def lerp(a, b, t):
-        return ((1 - t) * a) + (b * t)
+        return (a * (1 - t)) + (b * t)
 
     @staticmethod
     def cross(a, b):

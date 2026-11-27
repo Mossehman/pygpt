@@ -4,11 +4,16 @@ import math
 from core.contact import CollisionContact
 
 class PhysicsManager:
-    PHYSICS_TICK = 0.05 # Interval between physics ticks
-    GRAVITY = Vec2(0, 50)
-    MAX_ITERATIONS = 32
+    PHYSICS_TICK = 0.02 * Time.time_scale # Interval between physics ticks
+    MAX_PHYSICS_TICK = 5 # Interval between physics ticks
+    GRAVITY = Vec2(0, 250)
+    MAX_ITERATIONS = 8
     OVERLAP = 0.5
     CORRECTION = 0.4
+
+    raycast_shape = None
+
+    collision_layers = {}
 
 
     __elapsed_time = 0
@@ -16,7 +21,32 @@ class PhysicsManager:
 
     __rigidbodies = {}
     __colliders = []
+    alpha = 0
 
+    @staticmethod
+    def add_ignore_collision(layerA, layerB):
+        if (layerA in PhysicsManager.collision_layers):
+            PhysicsManager.collision_layers[layerA].append(layerB)
+        else:
+            PhysicsManager.collision_layers[layerA] = [layerB]
+
+        if (layerB in PhysicsManager.collision_layers):
+            PhysicsManager.collision_layers[layerB].append(layerA)
+        else:
+            PhysicsManager.collision_layers[layerB] = [layerA]
+
+    
+    @staticmethod
+    def remove_ignore_collision(layerA, layerB):
+        if (layerA in PhysicsManager.collision_layers):
+            PhysicsManager.collision_layers[layerA].remove(layerB)
+            if (len(PhysicsManager.collision_layers[layerA]) == 0):
+                del PhysicsManager.collision_layers[layerA]
+        
+        if (layerB in PhysicsManager.collision_layers):
+            PhysicsManager.collision_layers[layerB].remove(layerA)
+            if (len(PhysicsManager.collision_layers[layerB]) == 0):
+                del PhysicsManager.collision_layers[layerB]
 
     @staticmethod
     def register_collider(collider):
@@ -26,19 +56,58 @@ class PhysicsManager:
     def register_rb(rb):
         if (rb.collider == None):
             return
-        PhysicsManager.__rigidbodies[rb.collider] = rb
+        PhysicsManager.__rigidbodies[rb.collider.resolve()] = rb
 
     @staticmethod
     def update_ticks():
+        PhysicsManager.alpha = PhysicsManager.__elapsed_time / PhysicsManager.PHYSICS_TICK
         PhysicsManager.__elapsed_time += Time.get_deltatime()
         PhysicsManager.__ticks = 0
         while PhysicsManager.__elapsed_time >= PhysicsManager.PHYSICS_TICK:
-            PhysicsManager.__ticks += 1
+            PhysicsManager.__ticks = min(PhysicsManager.__ticks + 1, PhysicsManager.MAX_PHYSICS_TICK)
             PhysicsManager.__elapsed_time -= PhysicsManager.PHYSICS_TICK
         
     @staticmethod
     def get_ticks():
         return PhysicsManager.__ticks
+
+    @staticmethod
+    def raycast(start, direction, distance, layers:list=None):
+        normalized_dir = direction.normalize()
+        p1 = start
+        p2 = start + normalized_dir * distance
+
+        PhysicsManager.raycast_shape.p1 = p1
+        PhysicsManager.raycast_shape.p2 = p2
+
+        PhysicsManager.raycast_shape.draw_p1 = p1
+        PhysicsManager.raycast_shape.draw_p2 = p2
+
+        nearest_distance = math.inf
+
+        for col in PhysicsManager.__colliders:
+            if (col.trigger == True):
+                continue
+            
+            hit, simplex = PhysicsManager.check_collisions(PhysicsManager.raycast_shape, col)
+            if (hit == False):
+                continue
+
+            normal, depth = PhysicsManager.resolve_collisions(PhysicsManager.raycast_shape, col, simplex)
+            if (depth <= 0):
+                continue
+
+            depth_vector = normalized_dir * depth
+            point = p2 - depth_vector
+            
+            PhysicsManager.raycast_shape.draw_p2 = point
+            PhysicsManager.raycast_shape.render_collider()
+            return (col, point, normal, depth)
+
+        PhysicsManager.raycast_shape.render_collider()
+        return None
+    
+
 
     @staticmethod
     def run():
@@ -49,6 +118,10 @@ class PhysicsManager:
         for i, col in enumerate(cols):
             for other in cols[i + 1:]: # do not check colliders we already accounted for
                 rb_a, rb_b = rbs.get(col), rbs.get(other)
+
+                if (col.collider_layer in PhysicsManager.collision_layers and other.collider_layer in PhysicsManager.collision_layers[col.collider_layer]):
+                    continue
+
                 if CollisionContact.get_inverse_mass(rb_a) == 0 and CollisionContact.get_inverse_mass(rb_b) == 0:
                     continue
                 hit, simplex = PhysicsManager.check_collisions(col, other)

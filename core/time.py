@@ -6,6 +6,7 @@ class Time:
     __clock = pygame.time.Clock()
     __dt = 0
     __elapsed_time = 0
+    time_scale = 1
 
     @staticmethod
     def run():
@@ -14,7 +15,15 @@ class Time:
     
     @staticmethod
     def get_deltatime():
+        return Time.__dt * Time.time_scale
+    @staticmethod
+    def get_elapsedtime():
+        return Time.__elapsed_time * Time.time_scale
+
+    @staticmethod
+    def get_deltatime_unscaled():
         return Time.__dt
+    
     @staticmethod
     def get_elapsedtime():
         return Time.__elapsed_time
